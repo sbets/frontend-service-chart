@@ -1,0 +1,74 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: {{ .Values.global.name }}
+spec:
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.global.name }}
+        release: {{ .Release.Name }}
+        heritage: {{ .Release.Service }}
+    spec:
+      containers:
+      - name: server
+        image: {{ template "frontend.image" . }}
+        ports:
+        - containerPort: {{ .Values.image.port }}
+        readinessProbe:
+          initialDelaySeconds: 10
+          httpGet:
+            path: "/_healthz"
+            port: {{ .Values.image.port }}
+            httpHeaders:
+            - name: "Cookie"
+              value: "shop_session-id=x-readiness-probe"
+        livenessProbe:
+          initialDelaySeconds: 10
+          httpGet:
+            path: "/_healthz"
+            port: {{ .Values.image.port }}
+            httpHeaders:
+            - name: "Cookie"
+              value: "shop_session-id=x-readiness-probe"
+        env:
+        - name: PRODUCT_CATALOG_SERVICE_ADDR
+          value: "productcatalogservice:3550"
+        - name: CURRENCY_SERVICE_ADDR
+          value: "currencyservice:7000"
+        - name: CART_SERVICE_ADDR
+          value: "cartservice:7070"
+        - name: RECOMMENDATION_SERVICE_ADDR
+          value: "recommendationservice:8080"
+        - name: SHIPPING_SERVICE_ADDR
+          value: "shippingservice:50051"
+        - name: CHECKOUT_SERVICE_ADDR
+          value: "checkoutservice:5050"
+        - name: AD_SERVICE_ADDR
+          value: "adservice:9555"
+        resources:
+{{ toYaml .Values.resources | indent 10 }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.global.name }}
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    app: {{ .Values.global.name }}
+  ports:
+{{ toYaml .Values.service.ports | indent 2 }}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.global.name }}
+spec:
+  type: {{ .Values.lb.type }}
+  selector:
+    app: {{ .Values.global.name }}
+  ports:
+{{ toYaml .Values.lb.ports | indent 2 }}
